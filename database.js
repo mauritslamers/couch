@@ -1,6 +1,6 @@
-/*globals CouchDB */
+/*globals Couch */
 
-CouchDB.Database = SC.Object.extend({
+Couch.Database = SC.Object.extend({
   
   prefix: null,
   

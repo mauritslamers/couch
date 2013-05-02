@@ -1,4 +1,4 @@
-/*globals CouchDB */
+/*globals Couch */
 
 /*
 
@@ -50,7 +50,7 @@ SC.mixin(SC.Request,{
 
 
 
-CouchDB = SC.Object.create({
+Couch = SC.Object.create({
   
   
 });

@@ -1,15 +1,15 @@
-/*globals CouchDB */
+/*globals Couch */
 
 sc_require('database');
 
-CouchDB.Connection = SC.Object.extend({
+Couch.Connection = SC.Object.extend({
   
   prefix: null, // prefix to add in front of db names
   
   defaultResponder: null,
   
   database: function(dbname){
-    return CouchDB.Database.create({ 
+    return Couch.Database.create({ 
       database: dbname, 
       prefix: this.get('prefix') 
     });
