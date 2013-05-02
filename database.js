@@ -19,13 +19,13 @@ Couch.Database = SC.Object.extend({
       if(this.defaultResponder){
         this.defaultResponder.sendEvent(notifier,err,result);
       }
-      else throw new Error("CoreMeetme#CouchDatabase: Notifier is a string, but no defaultResponder defined");
+      else throw new Error("Couch.Database: Notifier is a string, but no defaultResponder defined");
     }
     else if(SC.typeOf(notifier) === "function"){
       notifier(err,result);
     }
     else {
-      throw new Error('CoreMeetme#CouchDatabase: Notifier is of a non-supported type');
+      throw new Error('Couch.Database: Notifier is of a non-supported type');
     }
   },
   
@@ -97,7 +97,7 @@ Couch.Database = SC.Object.extend({
   },
   
   get: function(id,notifier){ // get should support both id and [id1,id2]
-    if(!id || !notifier) throw new Error("CoreMeetme.CouchDatabase#get: Forgot parameters?");
+    if(!id || !notifier) throw new Error("Couch.Database#get: Forgot parameters?");
 
     var getKeys = function(t){
       var type = SC.typeOf(t);
@@ -112,7 +112,7 @@ Couch.Database = SC.Object.extend({
     }
     else keys = getKeys(id);
     if(!keys || keys.without(undefined).get('length') === 0){
-      throw new Error("CoreMeetme.CouchDatabase#get: no valid keys found");
+      throw new Error("Couch.Database#get: no valid keys found");
     } 
     
     if(SC.typeOf(keys) === "array"){ // bulk
@@ -161,7 +161,7 @@ Couch.Database = SC.Object.extend({
       case 2: id = arguments[0]; notifier = arguments[1]; break;
       case 3: id = arguments[0]; rec = arguments[1]; notifier = arguments[2]; break;
       case 4: id = arguments[0]; rev = arguments[1]; rec = arguments[2]; notifier = arguments[3]; break;
-      default: throw new Error("Too few or too many arguments to CoreMeetme.CouchDatabase#save");
+      default: throw new Error("Too few or too many arguments to Couch.Database#save");
     }
     if(SC.typeOf(id) === "array"){ // only with two arguments, bulk
       SC.Request.postUrl(this.urlFor('_all_docs')).json()
@@ -228,7 +228,7 @@ Couch.Database = SC.Object.extend({
     var ddoc, viewname,url,body,params;
     var viewparts = id.split("/");
     if(!viewparts[0] || viewparts[1]){
-      throw new Error("CoreMeetme.CouchDatabase#view: invalid view id");
+      throw new Error("Couch.Database#view: invalid view id");
     }
     if(!notifier && opts){
       notifier = opts;
@@ -260,9 +260,61 @@ Couch.Database = SC.Object.extend({
     }    
   },
   
-  // yet to implement
-  changes: function(){
-    
+  /*
+   either changes(notifier) or changes(opts, notifier)
+   opts: {
+     longPoll: true, // if you want long polling, set this to true, default is one time
+     pollInterval: 30, // interval in seconds if you set longPoll
+     opts: { // options for the changes feed itself, such as include_docs
+        since: 42,
+        include_docs: false
+     }
+   }
+   
+   to stop a long polling changes feed, call stopChanges
+   
+  */
+  changes: function(opts,notifier){
+    var url = this.urlFor('_changes');
+    var newopts;
+    if(opts && !notifier){
+      notifier = opts;
+      opts = null;
+    }
+    if(opts && opts.longPoll){ // setup long poll
+      newopts = {};
+      if(opts.opts) newopts.opts = opts.opts;
+      if(opts.pollInterval) newopts.timeout = opts.pollInterval * 1000;  
+      Couch.longPollManager.registerPoll(url,this,'_changesDidRespond',notifier,newopts);
+    }
+    else {
+      url = (opts && opts.opts)? url + "?" + jQuery.param(opts.opts): url;
+      SC.Request.getUrl(url).json()
+        .notify(this,this._changesDidRespond,notifier).send();
+    }
+  },
+  
+  _changesDidRespond: function(response,notifier){
+    var status = response.get('status');
+    if(!this._hasValidAuth(response,notifier)){
+      if(status === 404 || status === 403 || status === 402 || status === 401){ // if 404, don't retry
+        return false;
+      }      
+    }
+
+    var list = response.get('body');
+    if(SC.ok(response)){
+      // send list
+      this._callNotifier(notifier,null,list);
+    }
+    else {
+      this._callNotifier(notifier,new Error("Error in _changes request"),list);
+    }
+    return true; // normally return true in case we are called from a long polling request
+  },
+  
+  stopChanges: function(){
+    Couch.longPollManager.removePoll(this.urlFor('_changes'));
   }
   
 });
