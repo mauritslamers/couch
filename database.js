@@ -315,6 +315,26 @@ Couch.Database = SC.Object.extend({
   
   stopChanges: function(){
     Couch.longPollManager.removePoll(this.urlFor('_changes'));
+  },
+  
+  all: function(opts,notifier){
+    if(opts && !notifier){
+      notifier = opts;
+      opts = null;
+    }
+    var url = opts? this.urlFor('_all_docs?' + jQuery.param(opts)): this.urlFor('_all_docs');
+    SC.Request.getUrl(url).json()
+      .notify(this,this._allDidRespond,notifier).send();
+  },
+  
+  _allDidRespond: function(result,notifier){
+    if(!this._hasValidAuth(result,notifier)) return;
+    if(SC.ok(result)){
+      this._callNotifier(notifier,null,result);
+    }
+    else {
+      this._callNotifier(notifier,new Error("error while retrieving all documents"),result);
+    }
   }
   
 });
