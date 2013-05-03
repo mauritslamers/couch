@@ -7,7 +7,6 @@ It supports most parts of the API, with the exception of:
 - attachments
 - autodetecting design document saving
 - caching
-- changes feed (yet to be implemented)
 
 synopsis
 --------
