@@ -42,7 +42,7 @@ synopsis
   
 ```
 
-(For the rest of the API, please consult (https://github.com/cloudhead/cradle) )
+(For the rest of the API, please consult https://github.com/cloudhead/cradle)
 
 Licensed under MIT
 
