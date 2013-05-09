@@ -8,6 +8,9 @@ It supports most parts of the API, with the exception of:
 - autodetecting design document saving
 - caching
 
+Notes:
+- get is called retrieve here, because get has a different meaning in SC
+
 synopsis
 --------
 
@@ -18,11 +21,11 @@ synopsis
   });
   var db = connection.database('starwars');
 
-  db.get('vader', function (err, doc) {
+  db.retrieve('vader', function (err, doc) {
       doc.name; // 'Darth Vader'
   });
   
-  db.get('vader', 'retrievedDoc'); // this will forward the call to the statechart
+  db.retrieve('vader', 'retrievedDoc'); // this will forward the call to the statechart
 
   db.save('skywalker', {
       force: 'light',

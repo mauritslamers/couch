@@ -9,7 +9,8 @@ Couch.Connection = SC.Object.extend({
   defaultResponder: null,
   
   database: function(dbname){
-    return Couch.Database.create({ 
+    return Couch.Database.create({
+      defaultResponder: this.get('defaultResponder'), 
       database: dbname, 
       prefix: this.get('prefix') 
     });

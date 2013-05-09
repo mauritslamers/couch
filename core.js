@@ -10,8 +10,10 @@ uuids: function(count)
 logout: function(notifier)
 database: function(database)
 
-  get: function(id,notifier) 
-  get: function([id1,id2],notifier) 
+  retrieve: function(id,notifier) 
+  retrieve: function([id1,id2],notifier) 
+  all: function(notifier)
+  all: function(opts,notifier)
   save: function(id,rec,notifier)
   save: function(rec,notifier)
   save: function(id,rev,rec,notifier)
@@ -36,6 +38,10 @@ database: function(database)
   if it is a string, it will be sent as an event to the defaultResponder set to the 
   defaultResponder property.
   Both the defaultResponder as well as the function should accept (err,result) as arguments
+  
+  Extra arguments are allowed and are passed on to the notifier for the following functions:
+  - receive 
+  - info
 
 */
 
@@ -45,9 +51,6 @@ SC.mixin(SC.Request,{
     return this.create().set('address','address').set('type','HEAD');
   }
 });
-
-
-
 
 
 Couch = SC.Object.create({

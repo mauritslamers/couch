@@ -15,14 +15,15 @@ Couch.Database = SC.Object.extend({
   },
   
   _callNotifier: function(notifier,err,result){
+    var args = SC.A(arguments);
     if(SC.typeOf(notifier) === "string"){
       if(this.defaultResponder){
-        this.defaultResponder.sendEvent(notifier,err,result);
+        this.defaultResponder.sendEvent.apply(this.defaultResponder,arguments); // directly patch
       }
       else throw new Error("Couch.Database: Notifier is a string, but no defaultResponder defined");
     }
     else if(SC.typeOf(notifier) === "function"){
-      notifier(err,result);
+      notifier.apply(this,args.slice(1));
     }
     else {
       throw new Error('Couch.Database: Notifier is of a non-supported type');
@@ -31,7 +32,8 @@ Couch.Database = SC.Object.extend({
   
   _hasValidAuth: function(result,notifier){
     if(result.get('status') === 401){
-      this._callNotifier(notifier,new Error("unauthorized"),result);
+      var newargs = SC.A(arguments).slice(2).unshift(notifier,new Error("unauthorized"),result);
+      this._callNotifier.apply(this,newargs);
       return false;
     }
     else return true;
@@ -53,16 +55,21 @@ Couch.Database = SC.Object.extend({
   },
   
   info: function(notifier){
+    var newargs = SC.A(arguments);
+    newargs.unshift(this._infoDidRespond);
     SC.Request.getUrl(this.get('baseUrl')).json()
-      .notify(this,this._infoDidRespond,notifier).send();
+      .notify.apply(this,newargs).send();
   },
   
   _infoDidRespond: function(result,notifier){
+    var newargs = SC.A(arguments).slice(2);
     if(SC.ok(result)){
-      this._callNotifier(notifier, null,result);
+      newargs.unshift(notifier, null,result);
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,result,null);
+      newargs.unshift(notifier,result,null)
+      this._callNotifier.apply(this,newargs);
     }
   },
   
@@ -96,7 +103,8 @@ Couch.Database = SC.Object.extend({
     }    
   },
   
-  get: function(id,notifier){ // get should support both id and [id1,id2]
+  retrieve: function(id,notifier){ // get should support both id and [id1,id2]
+    var keys, newargs;
     if(!id || !notifier) throw new Error("Couch.Database#get: Forgot parameters?");
 
     var getKeys = function(t){
@@ -106,7 +114,6 @@ Couch.Database = SC.Object.extend({
       else if(type === "object") return t.get('id');
     };
     
-    var keys;
     if(SC.typeOf(id) === "array"){
       keys = id.map(getKeys);
     }
@@ -114,37 +121,49 @@ Couch.Database = SC.Object.extend({
     if(!keys || keys.without(undefined).get('length') === 0){
       throw new Error("Couch.Database#get: no valid keys found");
     } 
-    
+
+    newargs = SC.A(arguments).slice(1);
+
     if(SC.typeOf(keys) === "array"){ // bulk
+      newargs.unshift(this._getBulkDidRespond);
       SC.Request.postUrl(this.urlFor('_all_docs?include_docs=true')).json()
-        .notify(this,this._getBulkDidRespond,notifier)
+        .notify.apply(this,newargs)
         .send({ keys: keys });
     }
     else { // single
+      newargs.unshift(this._getDidRespond);
       SC.Request.getUrl(this.urlFor(keys)).json()
-          .notify(this,this._getDidRespond,notifier).send();
+          .notify.apply(this,newargs).send();
     }
   },
   
   _getBulkDidRespond: function(result,notifier){
-    if(!this._hasValidAuth(result,notifier)) return;   
+    var args = SC.A(arguments);
+    if(!this._hasValidAuth.apply(this,arguments)) return;
+    var newargs = args.slice(2); 
     if(SC.ok(result)){
       var body = result.get('body');
-      this._callNotifier(notifier,null,body.rows);
+      newargs.unshift(notifier,null,body.rows);
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,new Error("invalid bulk request"),result);
+      newargs.unshift(notifier,new Error("invalid bulk request"),result);
+      this._callNotifier.apply(this,newargs);
     }
   },
   
   _getDidRespond: function(result,notifier){
-    if(!this._hasValidAuth(result,notifier)) return;
+    var args = SC.A(arguments);
+    if(!this._hasValidAuth.apply(this,arguments)) return;
+    var newargs = args.slice(2);     
     if(SC.ok(result)){
       var body = result.get('body');
-      this._callNotifier(notifier,null,body);
+      newargs.unshift(notifier,null,body);
+      this._callNotifier.apply(newargs);
     }
     else { 
-      this._callNotifier(notifier,new Error('Invalid single request, or doc not found'),null);
+      newargs.unshift(notifier,new Error('Invalid single request, or doc not found'),null);
+      this._callNotifier.apply(this,newargs);
     }
   },
   
@@ -189,7 +208,7 @@ Couch.Database = SC.Object.extend({
   _saveBulkDidRespond: function(result,notifier){
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result);
+      this._callNotifier(notifier,null,result.get('body'));
     }
     else {
       this._callNotifier(notifier,new Error("error while saving"),result);
@@ -199,7 +218,7 @@ Couch.Database = SC.Object.extend({
   _saveDidRespond: function(result,notifier){
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result);
+      this._callNotifier(notifier,null,result.get('body'));
     }
     else {
       this._callNotifier(notifier,new Error("error while saving"),result);
@@ -214,7 +233,7 @@ Couch.Database = SC.Object.extend({
   _removeDidRespond: function(result,notifier){
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result);
+      this._callNotifier(notifier,null,result.get('body'));
     }
     else {
       this._callNotifier(notifier,new Error("error while deleting"),result);
@@ -227,7 +246,7 @@ Couch.Database = SC.Object.extend({
     // needs to become _design/designdoc/_view/view/?opts
     var ddoc, viewname,url,body,params;
     var viewparts = id.split("/");
-    if(!viewparts[0] || viewparts[1]){
+    if(!viewparts[0] || !viewparts[1]){
       throw new Error("Couch.Database#view: invalid view id");
     }
     if(!notifier && opts){
@@ -237,7 +256,7 @@ Couch.Database = SC.Object.extend({
     
     ddoc = "_design/" + viewparts[0];
     viewname = "_view/" + viewparts[1];
-    if(opts.keys){// if keys are there, the request needs to be a post
+    if(opts && opts.keys){// if keys are there, the request needs to be a post
       body = { keys: opts.keys };
       params = SC.copy(opts);
       delete params.keys;
@@ -245,7 +264,8 @@ Couch.Database = SC.Object.extend({
         .notify(this,this._viewDidRespond,notifier).send(body);
     } 
     else { // we can suffice with a get
-      SC.Request.getUrl(this.urlFor(ddoc,viewname) + "?" + jQuery.param(opts)).json()
+      url = opts? this.urlFor(ddoc,viewname) + "?" + jQuery.param(opts): this.urlFor(ddoc,viewname);
+      SC.Request.getUrl(url).json()
         .notify(this,this._viewDidRespond,notifier).send();
     }
   },
@@ -253,7 +273,7 @@ Couch.Database = SC.Object.extend({
   _viewDidRespond: function(result,notifier){
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result);
+      this._callNotifier(notifier,null,result.get('body'));
     }
     else {
       this._callNotifier(notifier,new Error("error while retrieving view"),result);
@@ -330,7 +350,7 @@ Couch.Database = SC.Object.extend({
   _allDidRespond: function(result,notifier){
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result);
+      this._callNotifier(notifier,null,result.get('body'));
     }
     else {
       this._callNotifier(notifier,new Error("error while retrieving all documents"),result);
