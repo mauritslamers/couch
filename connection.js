@@ -8,6 +8,10 @@ Couch.Connection = SC.Object.extend({
   
   defaultResponder: null,
   
+  sessionTimeout: 600, // timeout in seconds, same default setting as default couch, 
+                        // adjust if your couch has a different setting. The automatic
+                        // login checker will check every 1/2 of this time
+  
   database: function(dbname){
     return Couch.Database.create({
       defaultResponder: this.get('defaultResponder'), 
@@ -16,16 +20,106 @@ Couch.Connection = SC.Object.extend({
     });
   },
   
+  sessionState: function(notifier){
+    SC.Request.getUrl(this._urlPrefix + '/_session').json()
+      .notify(this,this._sessionStateDidRespond,notifier).send();
+  },
+  
+  _sessionStateDidRespond: function(result,notifier){
+    var loggedin = false;
+    if(SC.ok(result)){
+      var body = result.get('body');
+      if(body && body.ok){
+        this._username = body.userCtx.name;
+        if(this._username) loggedin = this._username;
+      } 
+      this._callNotifier(notifier,null,loggedin);
+    }
+    else {
+      this._callNotifier(notifier,new Error("Problem with authenticating"),result);
+    }
+  },
+  
+  /* a successfull login also sets a session checker in motion to keep the session valid*/
+  
   login: function(username,password,notifier){
-    
+    SC.Logger.log("performing login for " + username);
+    var obj = { name: username, password: password };
+    SC.Request.postUrl(this.prefix + '/_session').json()
+      .notify(this,this._notifyLoginDidRespond,notifier)
+      .send(obj);
+    this._username = username;    
+  },
+  
+  _notifyLoginDidRespond: function(result,notifier){
+    var loggedIn = false;
+    //window.RESULT = result;
+    if(SC.ok(result)){
+      var body = result.get('body');
+      if(body && body.ok){
+        loggedIn = true;
+        SC.Logger.log("successfully logged in");
+        this._callNotifier(notifier,null,true);
+      } 
+      else this._callNotifier(notifier,null,false);
+    }
+    else this._callNotifier(notifier,new Error("Error on login"), result);
+  },
+  
+  _keepAlive: null,
+  
+  _startSessionKeepAlive: function(){
+    var me = this;
+    this._keepAlive = SC.Timer.schedule({
+      action: function(){
+        me.sessionState('sessionIsAlive');
+      },
+      interval: this.sessionTimeout / 2,
+      repeats: true
+    });
+  },
+  
+  _endSessionKeepAlive: function(){
+    if(this._keepAlive) {
+      this._keepAlive.invalidate();
+      this._keepAlive = null;
+    }
   },
   
   logout: function(notifier){
-    
+    SC.Request.deleteUrl(this._urlPrefix + "/_session").json()
+              .notify(this,this._notifyLogoutDidRespond,notifier)
+              .send();
+  },
+  
+  _notifyLogoutDidRespond: function(result,notifier){
+    this._endSessionKeepAlive(); // always end heartbeat
+    if(SC.ok(result)){
+      this._callNotifier(notifier,null,true);
+    }
+    else {
+      this._callNotifier(notifier,new Error("logout error"), result);
+    }    
   },
   
   uuids: function(count){ // function to get uuids
     
+  },
+  
+  _callNotifier: function(notifier,err,result){
+    var args = SC.A(arguments);
+    if(SC.typeOf(notifier) === "string"){
+      if(this.defaultResponder){
+        this.defaultResponder.sendEvent.apply(this.defaultResponder,arguments); // directly patch
+      }
+      else throw new Error("Couch.Connection: Notifier is a string, but no defaultResponder defined");
+    }
+    else if(SC.typeOf(notifier) === "function"){
+      notifier.apply(this,args.slice(1));
+    }
+    else {
+      throw new Error('Couch.Connection: Notifier is of a non-supported type');
+    }
   }
   
 });
