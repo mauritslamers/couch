@@ -12,6 +12,14 @@ Couch.Connection = SC.Object.extend({
                         // adjust if your couch has a different setting. The automatic
                         // login checker will check every 1/2 of this time
   
+  baseUrl: function(){
+    return [this.get('prefix')].join("/");
+  }.property('prefix').cacheable(),
+
+  urlFor: function(){
+    return [this.get('baseUrl')].concat(SC.A(arguments)).join("/");
+  },
+  
   database: function(dbname){
     return Couch.Database.create({
       defaultResponder: this.get('defaultResponder'), 
@@ -21,7 +29,7 @@ Couch.Connection = SC.Object.extend({
   },
   
   sessionState: function(notifier){
-    SC.Request.getUrl(this._urlPrefix + '/_session').json()
+    SC.Request.getUrl(this.urlFor('_session')).json()
       .notify(this,this._sessionStateDidRespond,notifier).send();
   },
   
@@ -31,7 +39,7 @@ Couch.Connection = SC.Object.extend({
       var body = result.get('body');
       if(body && body.ok){
         this._username = body.userCtx.name;
-        if(this._username) loggedin = this._username;
+        if(this._username) loggedin = body.userCtx;
       } 
       this._callNotifier(notifier,null,loggedin);
     }
@@ -45,23 +53,21 @@ Couch.Connection = SC.Object.extend({
   login: function(username,password,notifier){
     SC.Logger.log("performing login for " + username);
     var obj = { name: username, password: password };
-    SC.Request.postUrl(this.prefix + '/_session').json()
+    SC.Request.postUrl(this.urlFor('_session')).json()
       .notify(this,this._notifyLoginDidRespond,notifier)
       .send(obj);
     this._username = username;    
   },
   
   _notifyLoginDidRespond: function(result,notifier){
-    var loggedIn = false;
-    //window.RESULT = result;
     if(SC.ok(result)){
       var body = result.get('body');
       if(body && body.ok){
-        loggedIn = true;
         SC.Logger.log("successfully logged in");
-        this._callNotifier(notifier,null,true);
+        this._callNotifier(notifier,null,body);
+        this._startSessionKeepAlive();
       } 
-      else this._callNotifier(notifier,null,false);
+      else this._callNotifier(notifier,null,body);
     }
     else this._callNotifier(notifier,new Error("Error on login"), result);
   },
@@ -74,7 +80,7 @@ Couch.Connection = SC.Object.extend({
       action: function(){
         me.sessionState('sessionIsAlive');
       },
-      interval: this.sessionTimeout / 2,
+      interval: (this.sessionTimeout / 2) * 1000,
       repeats: true
     });
   },
@@ -87,7 +93,7 @@ Couch.Connection = SC.Object.extend({
   },
   
   logout: function(notifier){
-    SC.Request.deleteUrl(this._urlPrefix + "/_session").json()
+    SC.Request.deleteUrl(this.urlFor("_session")).json()
               .notify(this,this._notifyLogoutDidRespond,notifier)
               .send();
   },

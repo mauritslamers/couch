@@ -40,7 +40,7 @@ Couch.Database = SC.Object.extend({
   },
 
   exists: function(notifier){
-    SC.Request.headUrl(this.get('baseUrl')).json()
+    var req = SC.Request.headUrl(this.get('baseUrl')).json()
       .notify(this,this._existsDidRespond,notifier).send();
   },
   
@@ -56,9 +56,9 @@ Couch.Database = SC.Object.extend({
   
   info: function(notifier){
     var newargs = SC.A(arguments);
-    newargs.unshift(this._infoDidRespond);
-    SC.Request.getUrl(this.get('baseUrl')).json()
-      .notify.apply(this,newargs).send();
+    newargs.unshift(this,this._infoDidRespond);
+    var req = SC.Request.getUrl(this.get('baseUrl')).json();
+    req.notify.apply(req,newargs).send();
   },
   
   _infoDidRespond: function(result,notifier){
@@ -68,7 +68,7 @@ Couch.Database = SC.Object.extend({
       this._callNotifier.apply(this,newargs);
     }
     else {
-      newargs.unshift(notifier,result,null)
+      newargs.unshift(notifier,result,null);
       this._callNotifier.apply(this,newargs);
     }
   },
@@ -104,7 +104,7 @@ Couch.Database = SC.Object.extend({
   },
   
   retrieve: function(id,notifier){ // get should support both id and [id1,id2]
-    var keys, newargs;
+    var keys, newargs, req;
     if(!id || !notifier) throw new Error("Couch.Database#get: Forgot parameters?");
 
     var getKeys = function(t){
@@ -125,15 +125,14 @@ Couch.Database = SC.Object.extend({
     newargs = SC.A(arguments).slice(1);
 
     if(SC.typeOf(keys) === "array"){ // bulk
-      newargs.unshift(this._getBulkDidRespond);
-      SC.Request.postUrl(this.urlFor('_all_docs?include_docs=true')).json()
-        .notify.apply(this,newargs)
-        .send({ keys: keys });
+      newargs.unshift(this,this._getBulkDidRespond);
+      req = SC.Request.postUrl(this.urlFor('_all_docs?include_docs=true')).json();
+      req.notify.apply(req,newargs).send({ keys: keys });
     }
     else { // single
-      newargs.unshift(this._getDidRespond);
-      SC.Request.getUrl(this.urlFor(keys)).json()
-          .notify.apply(this,newargs).send();
+      newargs.unshift(this,this._getDidRespond);
+      req = SC.Request.getUrl(this.urlFor(keys)).json();
+      req.notify.apply(req,newargs).send();
     }
   },
   
@@ -241,42 +240,57 @@ Couch.Database = SC.Object.extend({
   },
   
   // simple view for the moment
-  view: function(id,opts,notifier){
+  view: function(){
     // id has format designdoc/view
     // needs to become _design/designdoc/_view/view/?opts
+    var id, opts, notifier, viewparts,req;
     var ddoc, viewname,url,body,params;
-    var viewparts = id.split("/");
+    var args = SC.A(arguments), newargs;
+    if(SC.typeOf(args[1]) === "string" || SC.typeOf(args[1]) === 'function'){ // args[1] is notifier
+      notifier = args[1];
+      id = args[0];
+      newargs = args.slice(2); // take remaining as pass through params
+    }
+    else if(SC.typeOf(args[1]) === 'hash'){
+      id = args[0];
+      opts = args[1];
+      notifier = args[2];
+      newargs = args.slice(3);
+    }
+
+    viewparts = id.split("/");
     if(!viewparts[0] || !viewparts[1]){
       throw new Error("Couch.Database#view: invalid view id");
-    }
-    if(!notifier && opts){
-      notifier = opts;
-      opts = null;
     }
     
     ddoc = "_design/" + viewparts[0];
     viewname = "_view/" + viewparts[1];
-    if(opts && opts.keys){// if keys are there, the request needs to be a post
+    if(opts && opts.keys){// if keys are there, the request needs to be a postUrl
       body = { keys: opts.keys };
       params = SC.copy(opts);
-      delete params.keys;
-      SC.Request.postUrl(this.urlFor(ddoc,viewname) + "?" + jQuery.param(params)).json()
-        .notify(this,this._viewDidRespond,notifier).send(body);
+      params.keys = null;
+      newargs.unshift(this,this._viewDidRespond,notifier);
+      req = SC.Request.postUrl(this.urlFor(ddoc,viewname) + "?" + jQuery.param(params)).json();
+      req.notify.apply(req,newargs).send(body);
     } 
-    else { // we can suffice with a get
+    else { // we can suffice with a getUrl
       url = opts? this.urlFor(ddoc,viewname) + "?" + jQuery.param(opts): this.urlFor(ddoc,viewname);
-      SC.Request.getUrl(url).json()
-        .notify(this,this._viewDidRespond,notifier).send();
+      newargs.unshift(this,this._viewDidRespond,notifier);
+      req = SC.Request.getUrl(url).json();
+      req.notify.apply(req,newargs).send(); // this way, because we need a correct this reference
     }
   },
   
   _viewDidRespond: function(result,notifier){
+    var newargs = SC.A(arguments).slice(2);
     if(!this._hasValidAuth(result,notifier)) return;
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result.get('body'));
+      newargs.unshift(notifier,null,result.get('body'));
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,new Error("error while retrieving view"),result);
+      newargs.unshift(notifier,new Error("error while retrieving view"),result);
+      this._callNotifier.apply(this,newargs);
     }    
   },
   
