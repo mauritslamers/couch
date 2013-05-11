@@ -40,6 +40,7 @@ Couch.Connection = SC.Object.extend({
       if(body && body.ok){
         this._username = body.userCtx.name;
         if(this._username) loggedin = body.userCtx;
+        if(!this._keepAlive) this._startSessionKeepAlive();
       } 
       this._callNotifier(notifier,null,loggedin);
     }
