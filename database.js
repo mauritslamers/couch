@@ -166,62 +166,83 @@ Couch.Database = SC.Object.extend({
     }
   },
   
-  /*
-  save: function(id,rec,notifier)
-  save: function(rec,notifier)
-  save: function(id,rev,rec,notifier)
-  save: function([rec1,rec2],notifier)
+  /* 4 argument scenarios
+  A => save: function(id,rec,notifier) 
+  B => save: function(rec,notifier)
+  C => save: function(id,rev,rec,notifier)
+  D => save: function([rec1,rec2],notifier)
   */
   
   save: function(){
-    var id,rec,rev,notifier,url;
-    switch(arguments.length){
-      case 2: id = arguments[0]; notifier = arguments[1]; break;
-      case 3: id = arguments[0]; rec = arguments[1]; notifier = arguments[2]; break;
-      case 4: id = arguments[0]; rev = arguments[1]; rec = arguments[2]; notifier = arguments[3]; break;
-      default: throw new Error("Too few or too many arguments to Couch.Database#save");
-    }
-    if(SC.typeOf(id) === "array"){ // only with two arguments, bulk
-      SC.Request.postUrl(this.urlFor('_all_docs')).json()
-        .notify(this,this._saveBulkDidRespond,notifier)
-        .send({
-          docs: id
-        });
-    }
-    else {
-      if(SC.typeOf(id) === "hash"){ // two arguments, let couch assign
-        SC.Request.postUrl(this.get('baseUrl')).json()
-          .notify(this,this._saveDidRespond,notifier)
-          .send(id);
+    var id,rec,recs,rev,notifier,url,newargs, req;
+    var args = SC.A(arguments);
+    var firstArgType = SC.typeOf(args[0]);
+    var secArgType = SC.typeOf(args[1]);
+    if(firstArgType === "string"){ 
+      id = args[0];
+      if(secArgType === "hash"){ // scenario A
+        rec = args[1];
+        notifier = args[2];
+        newargs = args.slice(3);
       }
-      else { // 3 or 4 args
-        url = this.urlFor(id);
-        url = rev? url + "?rev=" + rev: url;
-        SC.Request.putUrl(url).json()
-          .notify(this,this._saveDidRespond,notifier)
-          .send(rec);
+      else if(secArgType === "string"){ // scenario C
+        rev = args[1];
+        rec = args[2];
+        notifier = args[3];
+        newargs = args.slice(4);
       }
+      url = this.urlFor(id);
+      url = rev? url + "?rev=" + rev: url;
+      newargs.unshift(this,this._saveDidRespond,notifier);
+      req = SC.Request.putUrl(url).json();
+      req.notify.apply(req,newargs).send(rec);
+    }
+    else if(firstArgType === "hash"){ // scenario B
+      rec = args[0];
+      notifier = args[1];
+      newargs = args.slice(2);
+      newargs.unshift(this,this._saveDidRespond,notifier);
+      req = SC.Request.postUrl(this.get('baseUrl')).json();
+      req.notify.apply(req,newargs).send(rec);      
+    }
+    else if(firstArgType === "array"){ // scenario D
+      recs = args[0];
+      notifier = args[1];
+      newargs = args.slice(2);
+      newargs.unshift(this,this._saveBulkDidRespond,notifier);
+      req = SC.Request.postUrl(this.urlFor('_all_docs')).json();
+      req.notify.apply(req,newargs).send({ docs: recs });
     }
   },
   
   _saveBulkDidRespond: function(result,notifier){
-    if(!this._hasValidAuth(result,notifier)) return;
+    var args = SC.A(arguments);
+    if(!this._hasValidAuth.apply(this,arguments)) return;
+    var newargs = args.slice(2); 
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result.get('body'));
+      var body = result.get('body');
+      newargs.unshift(notifier,null,body.rows);
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,new Error("error while saving"),result);
+      newargs.unshift(notifier,new Error("invalid bulk request while saving"),result);
+      this._callNotifier.apply(this,newargs);
     }
   },
   
   _saveDidRespond: function(result,notifier){
-    if(!this._hasValidAuth(result,notifier)) return;
+    var args = SC.A(arguments);
+    if(!this._hasValidAuth.apply(this,arguments)) return;
+    var newargs = args.slice(2); 
     if(SC.ok(result)){
-      this._callNotifier(notifier,null,result.get('body'));
+      var body = result.get('body');
+      newargs.unshift(notifier,null,body);
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,new Error("error while saving"),result);
-    }    
+      newargs.unshift(notifier,new Error("error while saving"),result);
+      this._callNotifier.apply(this,newargs);
+    }
   },
   
   remove: function(id,rev,notifier){
