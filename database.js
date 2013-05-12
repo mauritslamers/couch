@@ -64,7 +64,7 @@ Couch.Database = SC.Object.extend({
   _infoDidRespond: function(result,notifier){
     var newargs = SC.A(arguments).slice(2);
     if(SC.ok(result)){
-      newargs.unshift(notifier, null,result);
+      newargs.unshift(notifier, null,result.get('body'));
       this._callNotifier.apply(this,newargs);
     }
     else {
@@ -328,10 +328,11 @@ Couch.Database = SC.Object.extend({
    
    to stop a long polling changes feed, call stopChanges
    
+   pass through options are only supported on non-long-polling changes requests
   */
-  changes: function(opts,notifier){
+  changes: function(opts,notifier){ 
     var url = this.urlFor('_changes');
-    var newopts;
+    var newopts, args, newargs, req;
     if(opts && !notifier){
       notifier = opts;
       opts = null;
@@ -343,15 +344,19 @@ Couch.Database = SC.Object.extend({
       Couch.longPollManager.registerPoll(url,this,'_changesDidRespond',notifier,newopts);
     }
     else {
+      args = SC.A(arguments);
+      newargs = opts? args.slice(2): args.slice(1);
       url = (opts && opts.opts)? url + "?" + jQuery.param(opts.opts): url;
-      SC.Request.getUrl(url).json()
-        .notify(this,this._changesDidRespond,notifier).send();
+      newargs.unshift(this,this._changesDidRespond,notifier);
+      req = SC.Request.getUrl(url).json();
+      req.notify.apply(req,newargs).send();
     }
   },
   
   _changesDidRespond: function(response,notifier){
     var status = response.get('status');
-    if(!this._hasValidAuth(response,notifier)){
+    var args = SC.A(arguments), newargs = args.slice(2);
+    if(!this._hasValidAuth.apply(this,args)){
       if(status === 404 || status === 403 || status === 402 || status === 401){ // if 404, don't retry
         return false;
       }      
@@ -360,10 +365,12 @@ Couch.Database = SC.Object.extend({
     var list = response.get('body');
     if(SC.ok(response)){
       // send list
-      this._callNotifier(notifier,null,list);
+      newargs.unshift(notifier,null,list);
+      this._callNotifier.apply(this,newargs);
     }
     else {
-      this._callNotifier(notifier,new Error("Error in _changes request"),list);
+      newargs.unshift(notifier,new Error("Error in _changes request"),list);
+      this._callNotifier.apply(this,newargs);
     }
     return true; // normally return true in case we are called from a long polling request
   },
