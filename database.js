@@ -339,7 +339,7 @@ Couch.Database = SC.Object.extend({
     }
     if(opts && opts.longPoll){ // setup long poll
       newopts = {};
-      if(opts.opts) newopts.opts = opts.opts;
+      if(opts.opts) newopts.params = opts.opts;
       if(opts.pollInterval) newopts.timeout = opts.pollInterval * 1000;  
       Couch.longPollManager.registerPoll(url,this,'_changesDidRespond',notifier,newopts);
     }
