@@ -35,12 +35,12 @@ Couch.LongPoller = SC.Object.extend({
       }
       // timeout has already been set, and should not be forwarded to couch
       if(this.opts.timeout) delete this.opts.timeout; 
-    } 
+    }
     this._pollRequest = this.createPollRequest();
   },
   
   createPollRequest: function(){
-    var params = this.opts? this.opts.params : null;
+    var params = this.opts && this.opts.params? this.opts.params : { feed: 'longpoll' };
     var url = this.url;
     if(!url) throw new Error("Couch.LongPoll: no url given to poll");
     if(this._since){
@@ -49,9 +49,8 @@ Couch.LongPoller = SC.Object.extend({
         params.since = this._since;
       }
     } 
-    if(params){
-      url += "?" + jQuery.param(params);
-    }
+    if(!params.feed) params.feed = 'longpoll'; // make sure that we are doing longpolling
+    url += "?" + jQuery.param(params);
     return SC.Request.getUrl(url).json().notify(this,'pollDidRespond',this.opts);
   },
   
