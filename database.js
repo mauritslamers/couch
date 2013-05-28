@@ -18,7 +18,9 @@ Couch.Database = SC.Object.extend({
     var args = SC.A(arguments);
     if(SC.typeOf(notifier) === "string"){
       if(this.defaultResponder){
-        this.defaultResponder.sendEvent.apply(this.defaultResponder,arguments); // directly patch
+        // we cannot patch directly, because statechart#sendEvent only allows for two arguments
+        var newargs = [notifier,{ err: err, result: result}, args.splice(3)];
+        this.defaultResponder.sendEvent.apply(this.defaultResponder,newargs); // directly patch
       }
       else throw new Error("Couch.Database: Notifier is a string, but no defaultResponder defined");
     }

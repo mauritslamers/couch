@@ -1,4 +1,4 @@
-/*globals Couch */
+/* globals Couch */
 
 /*
 
@@ -37,11 +37,13 @@ database: function(database)
   notifier is either a string or a function. If the notifier is a function it will be called,
   if it is a string, it will be sent as an event to the defaultResponder set to the 
   defaultResponder property.
-  Both the defaultResponder as well as the function should accept (err,result) as arguments
+  Extra arguments are allowed and are passed on to the notifier all functions.
+
+  If the notifier is a function, the arguments are patched through. 
+  Because the defaultResponder argument signature is limited by the statechart to a maximum of two arguments 
+  at the time of writing, the signature is different:
+  [eventName]: function( { err: err, result: result }, [array,of,extra,arguments]);
   
-  Extra arguments are allowed and are passed on to the notifier for the following functions:
-  - receive 
-  - info
 
 */
 
@@ -54,6 +56,5 @@ SC.mixin(SC.Request,{
 
 
 Couch = SC.Object.create({
-  
-  
+
 });
