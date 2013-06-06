@@ -421,6 +421,7 @@ Couch.Database = SC.Object.extend({
     args.unshift(this,this._saveAttachmentDidRespond,notifier);
     req.notify.apply(req,args);
     req.send(attachmentData.body);
+    return req; // so observers can be attached to listen to progress
   },
 
   _saveAttachmentDidRespond: function(result, notifier){
