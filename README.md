@@ -4,12 +4,14 @@ This framework is a port of a part of the very elegant API from cradle
 (https://github.com/cloudhead/cradle) by Alexis Sellier.
 
 It supports most parts of the API, with the exception of:
-- attachments
 - autodetecting design document saving
 - caching
 
 Notes:
 - get is called retrieve here, because get has a different meaning in SC
+- uploading and removing attachments is now supported but only through XHR2.
+- progress monitoring of the upload is supported. The saveAttachment function returns the request,
+  on which the progress property contains the current percentage. SC.Request#progress is observable.
 
 synopsis
 --------
