@@ -62,10 +62,12 @@ SC.mixin(SC.Request,{
 
 SC.mixin(SC.XHRResponse.prototype, {
   uploadProgress: function(evt){
+    SC.RunLoop.begin();
     var e = evt.originalEvent;
     var done = e.position || e.loaded, total = e.totalSize || e.total;
     e.percentage = (done/total*1000)/10;
     this.get('originalRequest').set('progress',e);
+    SC.RunLoop.end();
     //console.log('xhr.upload progress: ' + done + '/' + total + "=" + Math.floor(done/total*1000)/10 + "%");
   },
 
@@ -103,7 +105,6 @@ SC.mixin(SC.XHRResponse.prototype, {
         rawRequest.onreadystatechange = handleReadyStateChange;
         if(rawRequest.upload){
           rawRequest.upload.onprogress = function(e){
-            console.log('onprogess');
             if(!transport) return null;
             var ret = transport.uploadProgress(e);
             if (ret) transport = null;
@@ -128,6 +129,59 @@ SC.mixin(SC.XHRResponse.prototype, {
     if (!async) this.finishRequest() ; // not async
 
     return rawRequest ;
+  },
+
+  finishRequest: function(evt) {
+    var rawRequest = this.get('rawRequest'),
+        readyState = rawRequest.readyState,
+        error, status, msg;
+
+    if (readyState === 4 && !this.get('timedOut')) {
+      this.receive(function(proceed) {
+        if (!proceed) return ; // skip receiving...
+
+        // collect the status and decide if we're in an error state or not
+        status = -1 ;
+        try {
+          status = rawRequest.status || 0;
+        } catch (e) {}
+
+        // if there was an error - setup error and save it
+        if ((status < 200) || (status >= 300)) {
+
+          try {
+            msg = rawRequest.statusText || '';
+          } catch(e2) {
+            msg = '';
+          }
+
+          error = SC.$error(msg || "HTTP Request failed", "Request", status) ;
+          error.set("errorValue", this) ;
+          this.set('isError', YES);
+          this.set('errorObject', error);
+        }
+
+        // set the status - this will trigger changes on relatedp properties
+        this.set('status', status);
+
+      }, this);
+
+      // Avoid memory leaks
+      if (!SC.browser.msie && !SC.browser.opera) {
+        SC.Event.remove(rawRequest, 'readystatechange', this, this.finishRequest);
+        if(rawRequest.upload){
+          SC.Event.remove(rawRequest.upload, 'progress', this, this.uploadProgress);
+        }
+      } else {
+        rawRequest.onreadystatechange = null;
+        if(rawRequest.upload){
+          rawRequest.upload.onprogress = null;
+        }
+      }
+
+      return YES;
+    }
+    return NO;
   }
 });
 
