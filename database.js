@@ -419,6 +419,7 @@ Couch.Database = SC.Object.extend({
     var req = SC.Request.putUrl(this.urlFor(idData._id,attachmentData.name) + "?rev=" + idData._rev)
               .header({ 'Content-Type' : attachmentData['content-type'] });
     args.unshift(this,this._saveAttachmentDidRespond,notifier);
+    req.notify('progress',this,this._saveAttachmentProgress);
     req.notify.apply(req,args);
     req.send(attachmentData.body);
     return req; // so observers can be attached to listen to progress
@@ -434,6 +435,11 @@ Couch.Database = SC.Object.extend({
     else {
       this._callNotifier(notifier,new Error('error saving attachment: '), result);
     }
+  },
+
+  _saveAttachmentProgress: function(){
+    console.log('_saveAttachmentProgress');
+    console.log(arguments);
   },
 
   removeAttachment: function(doc,attachmentName,notifier){
