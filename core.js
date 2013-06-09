@@ -59,7 +59,7 @@ SC.mixin(SC.Request,{
 });
 
 // we have to monkeypatch XHRResponse to allow upload progress
-
+// this is only for sc 1.4.5, as SC master already has a different way of attaching to progress
 SC.mixin(SC.XHRResponse.prototype, {
   uploadProgress: function(evt){
     SC.RunLoop.begin();
