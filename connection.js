@@ -79,6 +79,7 @@ Couch.Connection = SC.Object.extend({
     var me = this;
     this._keepAlive = SC.Timer.schedule({
       action: function(){
+        console.log('sessionKeepAlive....');
         me.sessionState('sessionIsAlive');
       },
       interval: (this.sessionTimeout / 2) * 1000,
