@@ -30,11 +30,13 @@ Couch.Database = SC.Object.extend({
     else {
       throw new Error('Couch.Database: Notifier is of a non-supported type');
     }
+    if(err) SC.Logger.log("err inn _callNotifier");
   },
 
   _hasValidAuth: function(result,notifier){
     if(result.get('status') === 401){
-      var newargs = SC.A(arguments).slice(2).unshift(notifier,new Error("unauthorized"),result);
+      var newargs = SC.A(arguments).slice(2);
+      newargs.unshift(notifier,new Error("unauthorized"),result);
       this._callNotifier.apply(this,newargs);
       return false;
     }
@@ -363,7 +365,6 @@ Couch.Database = SC.Object.extend({
         return false;
       }
     }
-
     var list = response.get('body');
     if(SC.ok(response)){
       // send list
@@ -371,8 +372,13 @@ Couch.Database = SC.Object.extend({
       this._callNotifier.apply(this,newargs);
     }
     else {
-      newargs.unshift(notifier,new Error("Error in _changes request"),list);
+      window.RESPONSE = response;
+      SC.Logger.log("response.get('status'): " + response.get('status'));
+      newargs.unshift(notifier,"Error in _changes request",response);
       this._callNotifier.apply(this,newargs);
+      //return false; // we don't want to continue with the polling, in case of an error..
+      // for the moment, it should continue... In the end this breaking off should be configurable
+
     }
     return true; // normally return true in case we are called from a long polling request
   },
