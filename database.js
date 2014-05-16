@@ -30,7 +30,7 @@ Couch.Database = SC.Object.extend({
     else {
       throw new Error('Couch.Database: Notifier is of a non-supported type');
     }
-    if(err) SC.Logger.log("err inn _callNotifier");
+    if(err) SC.Logger.log("err in _callNotifier");
   },
 
   _hasValidAuth: function(result,notifier){
@@ -376,9 +376,8 @@ Couch.Database = SC.Object.extend({
       SC.Logger.log("response.get('status'): " + response.get('status'));
       newargs.unshift(notifier,"Error in _changes request",response);
       this._callNotifier.apply(this,newargs);
-      //return false; // we don't want to continue with the polling, in case of an error..
-      // for the moment, it should continue... In the end this breaking off should be configurable
-
+      return false; // we don't want to continue with the polling, in case of an error..
+      // for the moment, it should continue... In the end this breaking off should be configurable.. but why should it continue..
     }
     return true; // normally return true in case we are called from a long polling request
   },
