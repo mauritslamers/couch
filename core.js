@@ -1,8 +1,6 @@
 /* globals Couch */
 
 /*
-
-
 This library exports the following functions:
 
 login: function(username,password,notifier)
@@ -48,14 +46,52 @@ database: function(database)
 */
 
 Couch = SC.Object.create({
+  ERROR_NOAUTH: SC.Error.desc("No authentication or authentication lost", "Not authenticated", null, -2500),
+  ERROR_INVALIDRESULT: SC.Error.desc("Invalid result", "Invalid result", null, -2501),
+  ERROR_INVALIDGETPARAMETERS: SC.Error.desc("Missing GET parameters in Couch.Database#retrieve", "Missing GET parameters", null, -2502),
+  ERROR_INVALIDBULKREQUEST: SC.Error.desc("invalid bulk request", "invalid bulk request", null, -2503),
+  ERROR_DOCNOTFOUND: SC.Error.desc('Invalid single request, or doc not found', "doc not found", null, -2504),
+  ERROR_INVALIDBULKSAVEREQUEST: SC.Error.desc("invalid bulk request while saving", "invalid bulk request while saving", null, -2505),
+  ERROR_SAVING: SC.Error.desc("Error while saving", "Error while saving", null, -2506),
+  ERROR_DELETING: SC.Error.desc("error while deleting", "error while deleting", null, -2507),
+  ERROR_INVALIDVIEWID: SC.Error.desc("Invalid view id", "Invalid view id", null, -2508),
+  ERROR_RETRIEVINGVIEW: SC.Error.desc("error while retrieving view", "error while retrieving view", null, -2509),
+  ERROR_CHANGES: SC.Error.desc("Error in _changes request", "Error in _changes request", null, -2510),
+  ERROR_RETRIEVEALL: SC.Error.desc("error while retrieving all documents", "error while retrieving all documents", null, -2511),
+  ERROR_LOGOUT: SC.Error.desc("Error while logging out, connection lost?", "Logout error", null, -2512),
+  ERROR_INCORRECTPASSWORD: SC.Error.desc("Username or password incorrect", "Login error", null, -2513),
+
+  callNotifier: function (target, action, err, result) {
+    //var args = SC.A(arguments), t, m;
+    var t, m;
+
+    if (!target && !action) throw new Error('Couch.Connection: Notifier is of a non-supported type');
+
+    if (SC.typeOf(target) === SC.T_FUNCTION && !action) {
+      m = target;
+      t = this;
+    }
+    else {
+      t = target;
+      m = (SC.typeOf(action) === SC.T_STRING) ? target[action]: action;
+    }
+    m.call(t, err, result);
+  },
+
+  stringify: function (hash) {
+    return JSON.stringify(hash, function (k, val) {
+      if (typeof(val) === "function") return val.toString();
+      else return val;
+    });
+  }
 
 });
 
-if(!SC.Request.headUrl){
+if (!SC.Request.headUrl) {
   // extending SC.Request to also include a head call
-  SC.mixin(SC.Request,{
-    headUrl: function(address){
-      return this.create().set('address',address).set('type','HEAD');
+  SC.mixin(SC.Request, {
+    headUrl: function (address) {
+      return this.create().set('address', address).set('type', 'HEAD');
     }
   });
 }

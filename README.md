@@ -1,6 +1,6 @@
 CouchDB framework for Sproutcore
 
-This framework is a port of a part of the very elegant API from cradle 
+This framework is a port of a part of the very elegant API from cradle
 (https://github.com/cloudhead/cradle) by Alexis Sellier.
 
 It supports most parts of the API, with the exception of:
@@ -13,12 +13,15 @@ Notes:
 - progress monitoring of the upload is supported. The saveAttachment function returns the request,
   on which the progress property contains the current percentage. SC.Request#progress is observable.
 
+Changes:
+- The defaultResponder option has been removed, as it is important to keep control in the statechart.
+  Every function now has to be called explicitly with a target and a method
+
 synopsis
 --------
 
 ``` js
   var connection = CouchDB.Connection.create({
-    defaultResponder: myApp.statechart, // you can set this, and then use strings for the notifier functions
     prefix: '/couch' // in case your couch is not available at the server root.
   });
   var db = connection.database('starwars');
@@ -26,7 +29,7 @@ synopsis
   db.retrieve('vader', function (err, doc) {
       doc.name; // 'Darth Vader'
   });
-  
+
   db.retrieve('vader', 'retrievedDoc'); // this will forward the call to the statechart
 
   db.save('skywalker', {
@@ -39,12 +42,12 @@ synopsis
           // Handle success
       }
   });
-  
+
   db.save('skywalker', {
       force: 'light',
       name: 'Luke Skywalker'
   }, 'documentSaved');
-  
+
 ```
 
 (For the rest of the API, please consult https://github.com/cloudhead/cradle)
@@ -70,4 +73,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
- 
+
