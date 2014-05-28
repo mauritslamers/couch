@@ -76,13 +76,6 @@ Couch = SC.Object.create({
       m = (SC.typeOf(action) === SC.T_STRING) ? target[action]: action;
     }
     m.call(t, err, result);
-  },
-
-  stringify: function (hash) {
-    return JSON.stringify(hash, function (k, val) {
-      if (typeof(val) === "function") return val.toString();
-      else return val;
-    });
   }
 
 });
@@ -96,7 +89,13 @@ if (!SC.Request.headUrl) {
   });
 }
 
-
+// overwrite json encode to allow functions in json
+SC.json.encode = function (ret) {
+  return JSON.stringify(ret, function (k, v) {
+    if (typeof(v) === "function") return v.toString();
+    else return v;
+  });
+};
 
 
 

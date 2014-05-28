@@ -201,7 +201,6 @@ Couch.Database = SC.Object.extend({
       }
       url = this.urlFor(id);
       url = rev ? url + "?rev=" + rev : url;
-      rec = Couch.stringify(rec); // stringify with functions kept in, in case of views
       newargs.unshift(this, this._saveDidRespond, target, action);
       req = SC.Request.putUrl(url).json();
       req.notify.apply(req, newargs).send(rec);
