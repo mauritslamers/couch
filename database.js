@@ -184,7 +184,7 @@ Couch.Database = SC.Object.extend({
     var args = SC.A(arguments);
     var firstArgType = SC.typeOf(args[0]);
     var secArgType = SC.typeOf(args[1]);
-    if (firstArgType === "string") {
+    if (firstArgType === SC.T_STRING) {
       id = args[0];
       if (secArgType === "hash") { // scenario A
         rec = args[1];
@@ -192,7 +192,7 @@ Couch.Database = SC.Object.extend({
         action = args[3];
         newargs = args.slice(4);
       }
-      else if (secArgType === "string") { // scenario C
+      else if (secArgType === SC.T_STRING) { // scenario C
         rev = args[1];
         rec = args[2];
         target = args[3];
@@ -205,7 +205,7 @@ Couch.Database = SC.Object.extend({
       req = SC.Request.putUrl(url).json();
       req.notify.apply(req, newargs).send(rec);
     }
-    else if (firstArgType === "hash") { // scenario B
+    else if (firstArgType === SC.T_HASH) { // scenario B
       rec = args[0];
       target = args[1];
       action = args[2];
@@ -214,13 +214,13 @@ Couch.Database = SC.Object.extend({
       req = SC.Request.postUrl(this.get('baseUrl')).json();
       req.notify.apply(req, newargs).send(rec);
     }
-    else if (firstArgType === "array") { // scenario D
+    else if (firstArgType === SC.T_ARRAY) { // scenario D
       recs = args[0];
       target = args[1];
       action = args[2];
       newargs = args.slice(3);
       newargs.unshift(this, this._saveBulkDidRespond, target, action);
-      req = SC.Request.postUrl(this.urlFor('_all_docs')).json();
+      req = SC.Request.postUrl(this.urlFor('_bulk_docs')).json();
       req.notify.apply(req, newargs).send({ docs: recs });
     }
   },
