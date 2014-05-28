@@ -105,7 +105,7 @@ Couch.Database = SC.Object.extend({
       Couch.callNotifier(target, action, null, result);
     }
     else {
-      Couch.callNotifier(target, action, result, null);
+      Couch.callNotifier(target, action, Couch.ERROR_COULDNOTCREATEDB, result);
     }
   },
 

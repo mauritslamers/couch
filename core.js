@@ -60,6 +60,7 @@ Couch = SC.Object.create({
   ERROR_RETRIEVEALL: SC.Error.desc("error while retrieving all documents", "error while retrieving all documents", null, -2511),
   ERROR_LOGOUT: SC.Error.desc("Error while logging out, connection lost?", "Logout error", null, -2512),
   ERROR_INCORRECTPASSWORD: SC.Error.desc("Username or password incorrect", "Login error", null, -2513),
+  ERROR_COULDNOTCREATEDB: SC.Error.desc("Couldn't create the database", "Database create error", null, -2514),
 
   callNotifier: function (target, action, err, result) {
     //var args = SC.A(arguments), t, m;
