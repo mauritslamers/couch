@@ -68,7 +68,7 @@ Couch.Database = SC.Object.extend({
   },
 
   _infoDidRespond: function (result, target, action) {
-    var newargs = SC.A(arguments).slice(2);
+    var newargs = SC.A(arguments).slice(3);
     if (SC.ok(result)) {
       newargs.unshift(target, action, null, result.get('body'));
       Couch.callNotifier.apply(this, newargs);
@@ -80,33 +80,37 @@ Couch.Database = SC.Object.extend({
   },
 
   destroy: function (id, target, action) {
-    SC.Request.deleteUrl(this.get('baseUrl')).json()
-      .notify(this, this._destroyDidRespond, target, action).send();
+    var newargs = SC.A(arguments);
+    newargs.unshift(this, this._destroyDidRespond);
+    var req = SC.Request.deleteUrl(this.get('baseUrl')).json();
+    req.notify.apply(req, newargs).send();
   },
 
   _destroyDidRespond: function (result, target, action) {
-    if (!this._hasValidAuth(result, target, action)) return;
+    if (!this._hasValidAuth.apply(this, arguments)) return;
+    var newargs = SC.A(arguments).slice(3);
     if (SC.ok(result)) {
-      Couch.callNotifier(target, action, null, result);
+      newargs.unshift(target, action, null, result);
     }
     else {
-      Couch.callNotifier(target, action, result, null);
+      newargs.unshift(target, action, result, null);
     }
+    Couch.callNotifier.apply(this, newargs);
   },
 
   create: function (target, action) {
-    SC.Request.putUrl(this.get('baseUrl')).json()
-      .notify(this, this._createDidRespond, target, action).send();
+    var newargs = SC.A(arguments);
+    newargs.unshift(this, this._createDidRespond);
+    var req = SC.Request.putUrl(this.get('baseUrl')).json();
+    req.notify.apply(req, newargs).send();
   },
 
   _createDidRespond: function (result, target, action) {
-    if (!this._hasValidAuth(result, target, action)) return;
-    if (SC.ok(result)) {
-      Couch.callNotifier(target, action, null, result);
-    }
-    else {
-      Couch.callNotifier(target, action, Couch.ERROR_COULDNOTCREATEDB, result);
-    }
+    if (!this._hasValidAuth.apply(this, arguments)) return;
+    var newargs = SC.A(arguments).slice(3);
+    var err = SC.ok(result) ? null: Couch.ERROR_COULDNOTCREATEDB;
+    newargs.unshift(target, action, err, result);
+    Couch.callNotifier.apply(Couch, newargs);
   },
 
   retrieve: function (id, target, action) { // get should support both id and [id1, id2]
@@ -197,7 +201,7 @@ Couch.Database = SC.Object.extend({
         rec = args[2];
         target = args[3];
         action = args[4];
-        newargs = args.slice(4);
+        newargs = args.slice(5);
       }
       url = this.urlFor(id);
       url = rev ? url + "?rev=" + rev : url;
@@ -271,23 +275,32 @@ Couch.Database = SC.Object.extend({
   },
 
   // syntax
-  // view("designdoc/view", function() )
-  // view("designdoc/view", target, method)
-  // view("designdoc/view", optionhash, target, method)
-  // view("designdoc/view", optionHash, function)
+  // situation A: view("designdoc/view", function() )
+  // situation B: view("designdoc/view", target, method)
+  // situation C: view("designdoc/view", optionhash, target, method)
+  // situation D: view("designdoc/view", optionHash, function)
   // any other parameters are passed through to the callbacks
   // simple view for the moment
   view: function () {
     // id has format designdoc/view
     // needs to become _design/designdoc/_view/view/?opts
-    var id, opts, target, action, viewparts, req;
+    var opts, target, action, viewparts, req;
     var ddoc, viewname, url, body, params;
     var args = SC.A(arguments), newargs;
-    if (SC.typeOf(args[1]) === SC.T_STRING || SC.typeOf(args[1]) === SC.T_FUNCTION) { // args[1] is notifier
+    var secondArgType = SC.typeOf(args[1]);
+    //var thirdArgType = SC.typeOf(args[2]);
+
+    var id = args[0];
+    if (secondArgType === SC.T_FUNCTION) { // situation A
+    //if (SC.typeOf(args[1]) === SC.T_STRING || SC.typeOf(args[1]) === SC.T_FUNCTION) { // args[1] is notifier
       target = args[1];
       action = null;
-      id = args[0];
       newargs = args.slice(2); // take remaining as pass through params
+    }
+    else if (secondArgType === SC.T_OBJECT) {
+      target = args[1];
+      action = args[2];
+      newargs = args.slice(3);
     }
     else if (SC.typeOf(args[1]) === SC.T_HASH) {
       id = args[0];

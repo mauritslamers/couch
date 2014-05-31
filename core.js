@@ -63,6 +63,7 @@ Couch = SC.Object.create({
   ERROR_COULDNOTCREATEDB: SC.Error.desc("Couldn't create the database", "Database create error", null, -2514),
 
   callNotifier: function (target, action, err, result) {
+    var newargs;
     //var args = SC.A(arguments), t, m;
     var t, m;
 
@@ -71,12 +72,18 @@ Couch = SC.Object.create({
     if (SC.typeOf(target) === SC.T_FUNCTION && !action) {
       m = target;
       t = this;
+      newargs = SC.A(arguments).slice(1);
     }
     else {
+      newargs = SC.A(arguments).slice(2);
       t = target;
       m = (SC.typeOf(action) === SC.T_STRING) ? target[action]: action;
     }
-    m.call(t, err, result);
+    if (t === window && m === undefined) {
+      throw new Error("Couch: Undefined method and target is window. This can happen when the action " +
+        " is called in a loop (forEach) and no proper this reference is present.");
+    }
+    m.apply(t, newargs);
   }
 
 });
