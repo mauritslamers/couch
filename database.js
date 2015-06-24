@@ -334,7 +334,7 @@ Couch.Database = SC.Object.extend({
   },
 
   _viewDidRespond: function (result, target, action) {
-    var newargs = SC.A(arguments).slice(2);
+    var newargs = action? SC.A(arguments).slice(3) : SC.A(arguments).slice(2);
     if (!this._hasValidAuth(result, target, action)) return;
     if (SC.ok(result)) {
       newargs.unshift(target, action, null, result.get('body'));
