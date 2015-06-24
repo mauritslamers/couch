@@ -40,6 +40,9 @@ Couch.Connection = SC.Object.extend({
         //SC.Logger.log("body is ok");
         this._username = body.userCtx.name;
         if (this._username) loggedin = body.userCtx;
+        // a session state check with a logged in status, means someone can create records
+        // make sure we have ids around
+        this._retrieveUuids();
       }
       //SC.Logger.log("calling notifier with ");
       //console.log(loggedin);
@@ -67,6 +70,9 @@ Couch.Connection = SC.Object.extend({
       if (body && body.ok) {
         SC.Logger.log("successfully logged in");
         Couch.callNotifier(target, action, null, body);
+        //piggyback the _uuid retriever here, as a successfull login means that
+        //someone can create a record.
+        this._retrieveUuids();
       }
       else Couch.callNotifier(target, action, null, body);
     }
@@ -126,8 +132,29 @@ Couch.Connection = SC.Object.extend({
     }
   },
 
-  uuids: function (count) { // function to get uuids
+  _uuids: null,
 
+  _retrieveUuids: function () {
+    if (!this._uuids) this._uuids = [];
+    if (this._uuids.length < 2) { // retrieve 5 and add to _uuids
+      SC.Request.getUrl(this.urlFor("_uuids?count=5")).json()
+        .notify(this, this._uuidsDidRetrieve).send();
+    }
+  },
+
+  _uuidsDidRetrieve: function (result) {
+    if (SC.ok(result)) {
+      var body = result.get('body');
+      if (body && body.uuids && body.uuids.length > 0) {
+        this._uuids = this._uuids.concat(body.uuids);
+      }
+    }
+  },
+
+  uuid: function () {
+    var ret = this._uuids.pop();
+    this._retrieveUuids();
+    return ret;
   }
 
 });
