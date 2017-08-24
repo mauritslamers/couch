@@ -235,7 +235,7 @@ Couch.Database = SC.Object.extend({
     var newargs = args.slice(3);
     if (SC.ok(result)) {
       var body = result.get('body');
-      newargs.unshift(target, action, null, body.rows);
+      newargs.unshift(target, action, null, body);
       Couch.callNotifier.apply(this, newargs);
     }
     else {
@@ -334,7 +334,7 @@ Couch.Database = SC.Object.extend({
   },
 
   _viewDidRespond: function (result, target, action) {
-    var newargs = SC.A(arguments).slice(2);
+    var newargs = SC.typeOf(target) === SC.T_FUNCTION ? SC.A(arguments).slice(2) : SC.A(arguments).slice(3);
     if (!this._hasValidAuth(result, target, action)) return;
     if (SC.ok(result)) {
       newargs.unshift(target, action, null, result.get('body'));
@@ -420,19 +420,23 @@ Couch.Database = SC.Object.extend({
       target = opts;
       opts = null;
     }
+    var extraArgs = SC.A(arguments).slice(3);
+    var newArgs = [this, this._allDidRespond, target, action].concat(extraArgs);
     var url = opts ? this.urlFor('_all_docs?' + jQuery.param(opts)): this.urlFor('_all_docs');
-    SC.Request.getUrl(url).json()
-      .notify(this, this._allDidRespond, target, action).send();
+    var req = SC.Request.getUrl(url).json();
+    req.notify.apply(req, newArgs).send();
   },
 
   _allDidRespond: function (result, target, action) {
     if (!this._hasValidAuth(result, target, action)) return;
+    var extraArgs = SC.A(arguments).slice(3), newArgs;
     if (SC.ok(result)) {
-      Couch.callNotifier(target, action, null, result.get('body'));
+      newArgs = [target, action, null, result.get('body')].concat(extraArgs);
     }
     else {
-      Couch.callNotifier(target, action, Couch.ERROR_RETRIEVEALL, result);
+      newArgs = [target, action, Couch.ERROR_RETRIEVEALL, result].concat(extraArgs);
     }
+    Couch.callNotifier.apply(Couch, newArgs);
   },
 
   /**

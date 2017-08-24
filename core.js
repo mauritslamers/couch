@@ -83,6 +83,9 @@ Couch = SC.Object.create({
       throw new Error("Couch: Undefined method and target is window. This can happen when the action " +
         " is called in a loop (forEach) and no proper this reference is present.");
     }
+    if (m === undefined) {
+      throw new Error("Couch: Cannot find the method you asked for. Did you make a typo?");
+    }
     m.apply(t, newargs);
   }
 

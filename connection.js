@@ -4,6 +4,12 @@ sc_require('database');
 
 Couch.Connection = SC.Object.extend({
 
+  init: function () {
+    sc_super();
+    // trigger retrieval of uuids
+    this._retrieveUuids();
+  },
+
   prefix: null, // prefix to add in front of db names
 
   sessionTimeout: 600, // timeout in seconds, same default setting as default couch,
@@ -34,23 +40,17 @@ Couch.Connection = SC.Object.extend({
     SC.Logger.log("_sessionStateDidRespond");
     var loggedin = false;
     if (SC.ok(result)) {
-      SC.Logger.log("result is ok");
       var body = result.get('body');
-      if (body && body.ok) {
+      if (body && body.ok && body.userCtx && body.userCtx.name) {
         //SC.Logger.log("body is ok");
         this._username = body.userCtx.name;
         if (this._username) loggedin = body.userCtx;
+        Couch.callNotifier(target, action, null, result);
+        return;
       }
-      //SC.Logger.log("calling notifier with ");
-      //console.log(loggedin);
-      Couch.callNotifier(target, action, null, loggedin);
     }
-    else {
-      Couch.callNotifier(target, action, Couch.ERROR_NOAUTH, result);
-    }
+    Couch.callNotifier(target, action, Couch.ERROR_NOAUTH, result);
   },
-
-  /* a successfull login also sets a session checker in motion to keep the session valid*/
 
   login: function (username, password, target, action) {
     SC.Logger.log("performing login for " + username);
@@ -117,7 +117,7 @@ Couch.Connection = SC.Object.extend({
   },
 
   _notifyLogoutDidRespond: function (result, target, action) {
-    this._endSessionKeepAlive(); // always end heartbeat
+    this.stopSessionKeepAlive(); // always end heartbeat
     if (SC.ok(result)) {
       Couch.callNotifier(target, action, null, true);
     }
@@ -126,8 +126,48 @@ Couch.Connection = SC.Object.extend({
     }
   },
 
-  uuids: function (count) { // function to get uuids
+  _retrieveUuids: function () {
+    var count = this._uuidBufferSize;
+    SC.Request.getUrl(this.urlFor("_uuids")).json()
+      .notify(this, this._uuidsDidRetrieve).send({ count: count });
+  },
 
+  _uuidsDidRetrieve: function (result) {
+    if (SC.ok(result)) {
+      this._uuids = result.get('body').uuids;
+    }
+    else SC.warn("Couch#_uuidsDidRetrieve: impossible to retrieve uuids?");
+  },
+
+  _uuidBufferSize: 50,
+
+  // convenience for a single uuid
+  uuid: function () {
+    return this.uuids();
+  },
+
+  // will return only as many as present, so if count is too high,
+  // you need to get a new series afterwards, or do it yourself.
+  uuids: function (count) { // function to get uuids
+    var ret;
+    if (!this._uuids) {
+      SC.warn("Couch#uuids: something is wrong, no uuids loaded?");
+      return null;
+    }
+    var c = count ? count : 1;
+    if (c === 1) {
+      ret = this._uuids.pop();
+    }
+    else {
+      ret = [];
+      for (var i = 0; i < count; i += 1) {
+        ret.push(this._uuids.pop()); // this way we know that the array is being adjusted immediately
+      }
+    }
+    if (this._uuids.length < (this._uuidBufferSize / 10)) {
+      this._retrieveUuids();
+    }
+    return ret;
   }
 
 });
